@@ -22,10 +22,10 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="bg-white border-b border-gray-200">
+    <nav className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
       <div className="max-w-6xl mx-auto px-4 flex h-14 items-center justify-between">
         <div className="flex items-center gap-6">
-          <span className="font-semibold text-blue-600 text-sm">AppTracker</span>
+          <span className="font-semibold text-blue-500 text-sm">AppTracker</span>
           <div className="flex gap-1">
             {NAV_ITEMS.map(({ href, label, Icon }) => {
               const active = pathname.startsWith(href)
@@ -35,8 +35,8 @@ export default function Navbar() {
                   href={href}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     active
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-blue-950 text-blue-400'
+                      : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -48,10 +48,10 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">{user?.name}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{user?.name}</span>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-100 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
           >
             <ArrowRightOnRectangleIcon className="h-4 w-4" />
             Sair

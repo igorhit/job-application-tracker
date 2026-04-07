@@ -17,6 +17,9 @@ const STATUS_OPTIONS = [
   { value: 5, label: 'Rejeitado' },
 ]
 
+const inputCls = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500'
+const labelCls = 'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300'
+
 export default function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -130,13 +133,13 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
   if (loading) return (
     <div className="space-y-4 animate-pulse max-w-2xl">
-      <div className="h-8 w-64 rounded bg-gray-200" />
-      <div className="h-48 rounded-xl bg-gray-200" />
-      <div className="h-32 rounded-xl bg-gray-200" />
+      <div className="h-8 w-64 rounded bg-gray-200 dark:bg-gray-800" />
+      <div className="h-48 rounded-xl bg-gray-200 dark:bg-gray-800" />
+      <div className="h-32 rounded-xl bg-gray-200 dark:bg-gray-800" />
     </div>
   )
 
-  if (!app) return <p className="text-gray-500">Candidatura não encontrada.</p>
+  if (!app) return <p className="text-gray-500 dark:text-gray-400">Candidatura não encontrada.</p>
 
   const statusLabel = app.statusLabel as ApplicationStatus
 
@@ -144,24 +147,24 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     <div className="max-w-2xl space-y-6">
       {/* Cabeçalho */}
       <div>
-        <Link href="/applications" className="mb-3 inline-block text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/applications" className="mb-3 inline-block text-sm text-gray-500 hover:text-gray-300 dark:text-gray-400">
           ← Candidaturas
         </Link>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">{app.jobTitle}</h1>
-            <p className="text-sm text-gray-500">{app.companyName}</p>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{app.jobTitle}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{app.companyName}</p>
           </div>
           <div className="flex gap-1 shrink-0">
             <button
               onClick={() => setEditing(e => !e)}
-              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors"
             >
               <PencilIcon className="h-4 w-4" />
             </button>
             <button
               onClick={handleDelete}
-              className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="rounded-lg p-2 text-gray-400 hover:bg-red-950 hover:text-red-400 transition-colors"
             >
               <TrashIcon className="h-4 w-4" />
             </button>
@@ -171,100 +174,84 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
       {/* Detalhes ou formulário de edição */}
       {editing ? (
-        <form onSubmit={handleSave} className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
+        <form onSubmit={handleSave} className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">Editar candidatura</h2>
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Editar candidatura</h2>
             <button type="button" onClick={() => setEditing(false)}>
-              <XMarkIcon className="h-4 w-4 text-gray-400" />
+              <XMarkIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
             </button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Cargo</label>
-              <input
-                type="text"
-                value={form.jobTitle}
-                onChange={e => set('jobTitle', e.target.value)}
-                required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+              <label className={labelCls}>Cargo</label>
+              <input type="text" value={form.jobTitle} onChange={e => set('jobTitle', e.target.value)} required className={inputCls} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
-              <select
-                value={form.status}
-                onChange={e => set('status', Number(e.target.value))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
+              <label className={labelCls}>Status</label>
+              <select value={form.status} onChange={e => set('status', Number(e.target.value))} className={inputCls}>
                 {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Data candidatura</label>
-              <input type="date" value={form.appliedAt} onChange={e => set('appliedAt', e.target.value)} required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <label className={labelCls}>Data candidatura</label>
+              <input type="date" value={form.appliedAt} onChange={e => set('appliedAt', e.target.value)} required className={inputCls} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Local</label>
-              <input type="text" value={form.location} onChange={e => set('location', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <label className={labelCls}>Local</label>
+              <input type="text" value={form.location} onChange={e => set('location', e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Pretensão (R$)</label>
-              <input type="number" value={form.salaryExpectation} onChange={e => set('salaryExpectation', e.target.value)} min="0"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <label className={labelCls}>Pretensão (R$)</label>
+              <input type="number" value={form.salaryExpectation} onChange={e => set('salaryExpectation', e.target.value)} min="0" className={inputCls} />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">URL da vaga</label>
-              <input type="url" value={form.jobUrl} onChange={e => set('jobUrl', e.target.value)} placeholder="https://"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <label className={labelCls}>URL da vaga</label>
+              <input type="url" value={form.jobUrl} onChange={e => set('jobUrl', e.target.value)} placeholder="https://" className={inputCls} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Próxima ação em</label>
-              <input type="date" value={form.nextActionAt} onChange={e => set('nextActionAt', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <label className={labelCls}>Próxima ação em</label>
+              <input type="date" value={form.nextActionAt} onChange={e => set('nextActionAt', e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">O que fazer</label>
-              <input type="text" value={form.nextActionNote} onChange={e => set('nextActionNote', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <label className={labelCls}>O que fazer</label>
+              <input type="text" value={form.nextActionNote} onChange={e => set('nextActionNote', e.target.value)} className={inputCls} />
             </div>
           </div>
-          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          {error && <p className="rounded-lg bg-red-950 px-3 py-2 text-sm text-red-400">{error}</p>}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={() => setEditing(false)}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors">
               Cancelar
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50 transition-colors">
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
         </form>
       ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             <div>
-              <p className="text-xs text-gray-400">Status</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Status</p>
               <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${APPLICATION_STATUS_COLORS[statusLabel]}`}>
                 {APPLICATION_STATUS_LABELS[statusLabel]}
               </span>
             </div>
             <div>
-              <p className="text-xs text-gray-400">Candidatura em</p>
-              <p className="text-sm text-gray-900">{new Date(app.appliedAt).toLocaleDateString('pt-BR')}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Candidatura em</p>
+              <p className="text-sm text-gray-900 dark:text-gray-100">{new Date(app.appliedAt).toLocaleDateString('pt-BR')}</p>
             </div>
             {app.location && (
               <div>
-                <p className="text-xs text-gray-400">Local</p>
-                <p className="text-sm text-gray-900">{app.location}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">Local</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">{app.location}</p>
               </div>
             )}
             {app.salaryExpectation && (
               <div>
-                <p className="text-xs text-gray-400">Pretensão</p>
-                <p className="text-sm text-gray-900">
+                <p className="text-xs text-gray-400 dark:text-gray-500">Pretensão</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">
                   {app.salaryExpectation.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
               </div>
@@ -272,17 +259,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           </div>
           {app.jobUrl && (
             <a href={app.jobUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+              className="flex items-center gap-1 text-xs text-blue-500 hover:underline">
               <GlobeAltIcon className="h-3 w-3" />
               Ver vaga
             </a>
           )}
           {app.nextActionAt && (
-            <div className="rounded-lg bg-blue-50 px-3 py-2">
-              <p className="text-xs font-medium text-blue-700">
+            <div className="rounded-lg bg-blue-950 px-3 py-2">
+              <p className="text-xs font-medium text-blue-400">
                 Próxima ação: {new Date(app.nextActionAt).toLocaleDateString('pt-BR')}
               </p>
-              {app.nextActionNote && <p className="text-xs text-blue-600 mt-0.5">{app.nextActionNote}</p>}
+              {app.nextActionNote && <p className="text-xs text-blue-500 mt-0.5">{app.nextActionNote}</p>}
             </div>
           )}
         </div>
@@ -290,7 +277,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
       {/* Notas */}
       <div>
-        <h2 className="mb-3 text-sm font-semibold text-gray-700">
+        <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
           Notas ({notesList.length})
         </h2>
 
@@ -300,12 +287,12 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             value={newNote}
             onChange={e => setNewNote(e.target.value)}
             placeholder="Adicionar nota..."
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className={`flex-1 ${inputCls}`}
           />
           <button
             type="submit"
             disabled={!newNote.trim() || addingNote}
-            className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50 transition-colors"
           >
             <PlusIcon className="h-4 w-4" />
             Adicionar
@@ -313,21 +300,21 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         </form>
 
         {notesList.length === 0 ? (
-          <p className="text-sm text-gray-400">Nenhuma nota ainda.</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Nenhuma nota ainda.</p>
         ) : (
           <div className="space-y-2">
             {notesList.map(note => (
-              <div key={note.id} className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+              <div key={note.id} className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{note.content}</p>
-                  <time className="mt-1 block text-xs text-gray-400">
+                  <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{note.content}</p>
+                  <time className="mt-1 block text-xs text-gray-400 dark:text-gray-500">
                     {new Date(note.createdAt).toLocaleString('pt-BR')}
                   </time>
                 </div>
                 <button
                   onClick={() => handleDeleteNote(note.id)}
                   disabled={deletingNote === note.id}
-                  className="ml-3 shrink-0 rounded-lg p-1.5 text-gray-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-50 transition-colors"
+                  className="ml-3 shrink-0 rounded-lg p-1.5 text-gray-300 hover:bg-red-950 hover:text-red-400 disabled:opacity-50 transition-colors"
                 >
                   <TrashIcon className="h-3.5 w-3.5" />
                 </button>
