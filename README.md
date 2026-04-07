@@ -1,6 +1,6 @@
 # Application Tracker
 
-[![CI](https://github.com/SEU_USUARIO/application-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/SEU_USUARIO/application-tracker/actions/workflows/ci.yml)
+[![CI](https://github.com/igorhit/job-application-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/igorhit/job-application-tracker/actions/workflows/ci.yml)
 
 Aplicação fullstack para organizar candidaturas a vagas de emprego. Backend em .NET 8, frontend em Next.js, banco SQLite embutido. Funciona com `git clone` + um comando.
 
