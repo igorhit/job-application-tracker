@@ -16,8 +16,10 @@ RUN dotnet publish ApplicationTracker.API/ApplicationTracker.API.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 RUN adduser --disabled-password --gecos "" appuser && \
-    mkdir -p /app/runtime && chown appuser:appuser /app/runtime
+    mkdir -p /app/runtime && chown -R appuser:appuser /app
 
 COPY --from=build /app/publish .
 

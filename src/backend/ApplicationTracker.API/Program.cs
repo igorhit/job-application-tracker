@@ -29,6 +29,19 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        var origins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',')
+            ?? ["http://localhost:3000"];
+        policy.WithOrigins(origins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 if (!isTesting)
 {
     builder.Services.AddMemoryCache();
@@ -100,6 +113,8 @@ app.Use(async (context, next) =>
 
 if (!isTesting)
     app.UseIpRateLimiting();
+
+app.UseCors();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>

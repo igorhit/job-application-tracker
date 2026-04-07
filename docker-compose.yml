@@ -15,6 +15,7 @@ services:
       - DemoData__Enabled=true
       - DemoData__UserEmail=demo@tracker.dev
       - DemoData__UserPassword=Demo1234!
+      - Cors__AllowedOrigins=http://localhost:3000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 10s

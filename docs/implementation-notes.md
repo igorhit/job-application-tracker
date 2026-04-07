@@ -210,3 +210,92 @@ private static void TryDelete(string path)
 **Por que essa solução**
 
 Arquivos temporários em `Path.GetTempPath()` são limpos pelo sistema operacional periodicamente. Não conseguir deletar o arquivo imediatamente é inofensivo — o teste já terminou, o banco estava isolado por nome único, e o OS cuidará da limpeza. Propagar a exceção causaria falsos negativos: testes que passaram seriam reportados como falhos por um problema de teardown não relacionado ao que estava sendo testado.
+
+---
+
+## 8. `project.assets.json` com caminhos Windows copiado para o container Linux
+
+**Problema**
+
+O `docker compose up --build` falhava no estágio `dotnet publish` com:
+
+```text
+NuGet.Packaging.Core.PackagingException: Unable to find fallback package folder
+'C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages'
+```
+
+**O que causava**
+
+O `COPY . .` no Dockerfile copiava os diretórios `obj/` locais para dentro do container. Esses diretórios contêm o `project.assets.json` gerado pelo `dotnet restore` na máquina Windows, com caminhos absolutos como `C:\Program Files\...`. O `dotnet publish --no-restore` usava esses assets corrompidos em vez de gerar novos.
+
+**Como foi solucionado**
+
+Criado `.dockerignore` em `src/backend/` excluindo `**/bin/` e `**/obj/`. Com isso, o `COPY . .` não copia os assets locais, e o `dotnet restore` dentro do container gera assets com caminhos Linux corretos.
+
+**Por que essa solução**
+
+`.dockerignore` é o mecanismo padrão para excluir arquivos do build context do Docker — análogo ao `.gitignore`. Excluir `obj/` e `bin/` é boa prática em qualquer Dockerfile .NET, pois evita que artefatos de build locais contaminem o build do container.
+
+---
+
+## 9. `curl` ausente na imagem base `dotnet/aspnet:8.0`
+
+**Problema**
+
+O healthcheck do `docker-compose.yml` usava `curl -f http://localhost:5001/health`, mas o container ficava `unhealthy` com erro:
+
+```text
+OCI runtime exec failed: exec: "curl": executable file not found in $PATH
+```
+
+**O que causava**
+
+A imagem `mcr.microsoft.com/dotnet/aspnet:8.0` é baseada em Debian slim e não inclui `curl` nem `wget` por padrão — apenas o runtime do .NET.
+
+**Como foi solucionado**
+
+Adicionado `apt-get install -y curl` no Dockerfile do backend, na etapa de runtime:
+
+```dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+```
+
+**Por que essa solução**
+
+É a abordagem mais explícita e portável — a dependência fica declarada no Dockerfile, visível para qualquer pessoa que revisar o projeto. A alternativa seria usar um healthcheck baseado em `dotnet` ou um script shell, mas instalar `curl` é mais simples e amplamente utilizado em imagens de produção .NET.
+
+---
+
+## 10. CORS não configurado — frontend bloqueado pelo browser
+
+**Problema**
+
+O login retornava "Erro ao fazer login" no frontend, mesmo com o backend respondendo corretamente. A chamada de `http://localhost:3000` para `http://localhost:5001` era bloqueada pelo browser com erro de CORS.
+
+**O que causava**
+
+O backend não tinha nenhuma configuração de CORS. O browser bloqueia requisições cross-origin (origens diferentes, mesmo que em localhost) quando o servidor não retorna o header `Access-Control-Allow-Origin`. O backend retornava 200 OK para chamadas diretas via `curl`, mas o browser adicionava o header `Origin: http://localhost:3000` e bloqueava a resposta por ausência de CORS.
+
+**Como foi solucionado**
+
+Adicionado `AddCors` e `UseCors` no `Program.cs`, com a origem permitida configurável via variável de ambiente `Cors__AllowedOrigins`:
+
+```csharp
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        var origins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',')
+            ?? ["http://localhost:3000"];
+        policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+    });
+});
+// ...
+app.UseCors();
+```
+
+No `docker-compose.yml`: `Cors__AllowedOrigins=http://localhost:3000`.
+
+**Por que essa solução**
+
+Configurar a origem via variável de ambiente permite que o mesmo container seja usado em diferentes ambientes (desenvolvimento local, staging, produção) sem rebuild. `AllowCredentials()` é necessário porque o frontend envia cookies e headers de autorização. A lista de origens separada por vírgula permite múltiplas origens se necessário.
