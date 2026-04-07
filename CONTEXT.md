@@ -23,36 +23,56 @@ O projeto deve complementar o `SecureVaultApi`:
 
 ## Status atual
 
-**Fase:** implementação concluída, pendente publicação no GitHub  
+**Fase:** publicado no GitHub, em validação funcional com docker compose  
+**Repositório:** <https://github.com/igorhit/job-application-tracker>  
 **Backend:** implementado com Clean Architecture + CQRS (MediatR) + SQLite  
-**Build:** compilando, 0 erros  
 **Testes unitários:** 6/6 passando  
 **Testes de integração:** 11/11 passando  
-**Frontend:** implementado (Next.js App Router, token em memória, todas as páginas funcionais)  
-**Docker Compose:** configurado com backend + frontend + healthcheck + volume  
-**Seed demo:** implementado (usuário `demo@tracker.dev` / Demo1234!, 4 empresas, 5 candidaturas, 3 notas)  
-**GitHub:** não publicado ainda  
-**CI:** arquivo `.github/workflows/ci.yml` criado, não validado remotamente
+**CI:** passando no GitHub Actions  
+**Frontend:** implementado (Next.js App Router), tema escuro como padrão  
+**Docker Compose:** funcional — backend healthy, frontend up  
+**Seed demo:** funcional (`demo@tracker.dev` / `Demo1234!`, 4 empresas, 5 candidaturas, 3 notas)
 
-**Próxima ação:** inicializar git, push para GitHub, validar CI
+### Último estado de validação
+
+O `docker compose up --build` está funcionando. O login com as credenciais demo foi testado (backend responde corretamente via curl). O frontend carrega em `http://localhost:3000`. Tema escuro foi aplicado e buildou com sucesso.
+
+**O que ainda não foi validado visualmente pelo desenvolvedor:** login completo via browser + navegação entre páginas. A sessão de IA encerrou antes da confirmação visual final.
+
+**Próxima ação sugerida:** validar o fluxo completo no browser (login → dashboard → candidaturas → empresas → notas) e corrigir eventuais problemas visuais ou funcionais encontrados.
+
+---
+
+## Problemas resolvidos nesta sessão (resumo)
+
+Todos documentados em `docs/implementation-notes.md`:
+
+1. JWT secret lido antes dos overrides de teste → `IPostConfigureOptions`
+2. `WebApplicationFactory` criando `.env` em paralelo → guard `if (!isTesting)`
+3. SQLite em memória perdendo dados entre conexões → SQLite em arquivo temporário
+4. Rate limiting quebrando testes → desativado no ambiente Testing
+5. `HttpClient` manual ignorando TestServer → usar `_factory.CreateClient()`
+6. Arquivo `.db` bloqueado no Dispose → `TryDelete()` silencioso
+7. Sobrescrita de arquivo bloqueada sem leitura prévia → ler antes de escrever
+8. `project.assets.json` com caminhos Windows no container → `.dockerignore` excluindo `obj/` e `bin/`
+9. `curl` ausente na imagem `dotnet/aspnet:8.0` → `apt-get install curl` no Dockerfile
+10. CORS não configurado → `AddCors`/`UseCors` com origem via `Cors__AllowedOrigins`
 
 ---
 
 ## Como rodar
 
 ```bash
-cd "C:\Users\User\Desktop\Coding\Projects\ApplicationTracker\src\backend\ApplicationTracker.API"
-dotnet run
+cd "C:\Users\User\Desktop\Coding\Projects\ApplicationTracker"
+docker compose up --build
 ```
 
-- Porta: `http://localhost:5001`
-- `.env` gerado automaticamente com JWT secret seguro na primeira execução
-- Banco SQLite `applicationtracker.db` criado automaticamente
-- Migrations aplicadas automaticamente
-- Swagger em `http://localhost:5001`
+- Frontend: `http://localhost:3000`
+- Backend / Swagger: `http://localhost:5001`
+- Login demo: `demo@tracker.dev` / `Demo1234!`
 
 ```bash
-# Rodar todos os testes
+# Testes
 cd "C:\Users\User\Desktop\Coding\Projects\ApplicationTracker\src\backend"
 dotnet test
 ```
@@ -61,27 +81,25 @@ dotnet test
 
 ## Estrutura
 
-```
+```text
 ApplicationTracker/
-├── .github/
-│   └── workflows/ci.yml
+├── .github/workflows/ci.yml
 ├── docs/
 │   ├── architecture.md
-│   └── security-decisions.md
+│   ├── security-decisions.md
+│   └── implementation-notes.md   # 10 problemas documentados
 ├── src/
 │   ├── backend/
-│   │   ├── ApplicationTracker.Domain/         # Entidades, interfaces, DomainErrors, Enums
-│   │   ├── ApplicationTracker.Application/    # CQRS handlers, validators, DTOs, ValidationBehavior
-│   │   ├── ApplicationTracker.Infrastructure/ # EF Core + SQLite, repositórios, Argon2, JWT
-│   │   └── ApplicationTracker.API/            # Controllers, Program.cs, EnvBootstrap
-│   └── frontend/                              # Next.js (não iniciado)
-├── tests/
-│   └── backend/
-│       ├── ApplicationTracker.UnitTests/      # 6 testes (NSubstitute + FluentAssertions)
-│       └── ApplicationTracker.IntegrationTests/ # 11 testes (SQLite temporário em arquivo)
+│   │   ├── .dockerignore          # exclui obj/ e bin/ do build context
+│   │   ├── ApplicationTracker.Domain/
+│   │   ├── ApplicationTracker.Application/
+│   │   ├── ApplicationTracker.Infrastructure/
+│   │   └── ApplicationTracker.API/
+│   └── frontend/                  # Next.js 16, App Router, Tailwind, tema escuro
+├── tests/backend/
+│   ├── ApplicationTracker.UnitTests/       # 6 testes
+│   └── ApplicationTracker.IntegrationTests/ # 11 testes
 ├── .env.example
-├── .gitignore
-├── CONTEXT.md
 ├── docker-compose.yml
 └── README.md
 ```
@@ -91,111 +109,59 @@ ApplicationTracker/
 ## Arquivos críticos
 
 | Arquivo | Papel |
-|---|---|
-| `src/backend/ApplicationTracker.API/Program.cs` | Entry point: EnvBootstrap, migrations, middlewares, Swagger |
+| --- | --- |
+| `src/backend/ApplicationTracker.API/Program.cs` | Entry point: EnvBootstrap, CORS, migrations, middlewares, Swagger |
 | `src/backend/ApplicationTracker.API/Infrastructure/EnvBootstrap.cs` | Gera `.env` com JWT secret seguro se não existir |
 | `src/backend/ApplicationTracker.Infrastructure/DependencyInjection.cs` | SQLite, repositórios, Argon2, JWT (leitura lazy via IPostConfigureOptions) |
-| `src/backend/ApplicationTracker.API/appsettings.json` | SQLite connection string, JWT issuer/audience, rate limiting |
-| `src/backend/ApplicationTracker.Infrastructure/Persistence/Migrations/` | Migration SQLite gerada |
+| `src/backend/Dockerfile` | Multi-stage, instala curl, cria appuser, chown /app |
+| `src/frontend/src/app/layout.tsx` | Classe `dark` fixada no `<html>` |
+| `src/frontend/src/lib/api.ts` | Cliente HTTP com token em memória e retry em 401 |
+| `src/frontend/src/contexts/AuthContext.tsx` | Restauração de sessão via refresh token no mount |
+| `docker-compose.yml` | `Cors__AllowedOrigins=http://localhost:3000`, healthcheck com curl |
 | `tests/backend/ApplicationTracker.IntegrationTests/IntegrationTestFactory.cs` | SQLite temporário em arquivo, env "Testing" |
 
 ---
 
 ## Regra de documentação de problemas
 
-Todo problema não-trivial encontrado durante o desenvolvimento deve ser registrado em `docs/implementation-notes.md` com o formato:
+Todo problema não-trivial encontrado durante o desenvolvimento deve ser registrado **imediatamente** em `docs/implementation-notes.md` no mesmo commit da solução, com o formato:
 
 - **Nome do problema** — título curto e descritivo
 - **O que causava** — causa raiz técnica, não apenas o sintoma
 - **Como foi solucionado** — solução aplicada, com trecho de código se relevante
 - **Por que essa solução** — motivação da decisão
 
-Este arquivo já existe e contém os problemas resolvidos até agora. Novos problemas devem ser adicionados ao longo do desenvolvimento.
+**Esta regra é obrigatória e não depende de solicitação do desenvolvedor.**
 
 ---
 
 ## Decisões arquiteturais
 
-- **SQLite** embutido, zero instalação — mesmo padrão do SecureVaultApi
+- **SQLite** embutido, zero instalação
 - **EnvBootstrap** gera JWT secret automaticamente na primeira execução
 - **Clean Architecture** Domain → Application → Infrastructure → API
 - **CQRS com MediatR** + ValidationBehavior pipeline
 - **Argon2id** para hash de senhas
 - **JWT 15min + refresh 7 dias** com rotação
-- **IPostConfigureOptions<JwtBearerOptions>** para leitura lazy do JWT secret (permite overrides nos testes)
-- **404 em vez de 403** para recursos de outro usuário (não revela existência)
-- **Testes de integração com SQLite temporário** sem Docker
-
----
-
-## Endpoints implementados
-
-```
-POST   /auth/register
-POST   /auth/login
-POST   /auth/refresh
-POST   /auth/logout     [Authorize]
-
-GET    /companies       [Authorize]
-POST   /companies       [Authorize]
-PUT    /companies/{id}  [Authorize]
-DELETE /companies/{id}  [Authorize]
-
-GET    /applications                          [Authorize]
-GET    /applications/search?q=               [Authorize]
-GET    /applications/{id}                    [Authorize]
-POST   /applications                         [Authorize]
-PUT    /applications/{id}                    [Authorize]
-DELETE /applications/{id}                   [Authorize]
-
-GET    /applications/{id}/notes              [Authorize]
-POST   /applications/{id}/notes              [Authorize]
-DELETE /applications/{applicationId}/notes/{id} [Authorize]
-
-GET    /dashboard       [Authorize]
-
-GET    /health
-```
-
----
-
-## Pacotes instalados
-
-**Domain:** FluentResults 3.15.2
-
-**Application:** MediatR 12.2.0, FluentValidation 11.9.0, FluentValidation.DI 11.9.0, FluentResults 3.15.2
-
-**Infrastructure:** EF Core 8.0.0, EF Core SQLite 8.0.0, EF Core Design 8.0.0, Konscious.Security.Cryptography.Argon2 1.3.1, Microsoft.AspNetCore.Authentication.JwtBearer 8.0.0
-
-**API:** Swashbuckle.AspNetCore 6.5.0, Serilog.AspNetCore 8.0.0, Serilog.Sinks.Console 5.0.1, AspNetCoreRateLimit 5.0.0, EF Core Design 8.0.0, Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore 8.0.0
-
-**UnitTests:** xUnit, FluentAssertions 6.12.0, NSubstitute 5.1.0
-
-**IntegrationTests:** xUnit, Microsoft.AspNetCore.Mvc.Testing 8.0.0, EF Core SQLite 8.0.0, FluentAssertions 6.12.0
+- **IPostConfigureOptions** para leitura lazy do JWT secret
+- **404 em vez de 403** para recursos de outro usuário
+- **Token em memória** no frontend (access token), refresh token no localStorage
+- **Tema escuro fixo** via classe `dark` no `<html>` (Tailwind v4)
+- **CORS** configurável via variável de ambiente `Cors__AllowedOrigins`
 
 ---
 
 ## Tarefas pendentes
 
-- [x] Definir proposta do Projeto 2
-- [x] Criar scaffold inicial do repositório local
-- [x] Criar `CONTEXT.md`
-- [x] Criar `README.md`
-- [x] Criar `docs/architecture.md`
-- [x] Criar `docs/security-decisions.md`
-- [x] Criar `.env.example`
-- [x] Criar `docker-compose.yml` inicial
-- [x] Criar estrutura concreta de `src/backend`
-- [x] Implementar autenticação no backend
-- [x] Implementar entidades `Company`, `JobApplication` e `ApplicationNote`
-- [x] Implementar dashboard
-- [x] Adicionar testes (6 unitários + 11 integração)
-- [x] Criar GitHub Actions CI
-- [x] Validar `dotnet run` manualmente no Swagger
-- [x] Implementar frontend com Next.js
-- [x] Adicionar seed demo
-- [x] Atualizar docker-compose.yml com serviços reais
-- [ ] Publicar no GitHub
+- [x] Implementar backend completo
+- [x] Implementar frontend completo
+- [x] Docker Compose funcional
+- [x] Seed demo
+- [x] CI passando
+- [x] Publicar no GitHub
+- [x] Tema escuro no frontend
+- [ ] Validar fluxo completo no browser (login → dashboard → candidaturas → empresas → notas)
+- [ ] Corrigir eventuais problemas visuais ou funcionais encontrados na validação
 
 ---
 
@@ -204,9 +170,9 @@ GET    /health
 Este é o **Projeto 2 de 3**:
 
 | # | Projeto | Stack | Status |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | SecureVault API | .NET 8 + SQLite | Concluído e publicado |
-| 2 | Application Tracker | .NET + Next.js + SQLite | Implementação concluída, pendente publicação |
+| 2 | Application Tracker | .NET + Next.js + SQLite | Publicado, em validação final |
 | 3 | Ferramenta de segurança | Python | Aguardando evolução em cibersec |
 
-Todos os projetos vivem em `C:\Users\User\Desktop\Coding\Projects\` e seguem os mesmos requisitos de portfólio definidos em `C:\Users\User\Desktop\Coding\Projects\CLAUDE.md`.
+Todos os projetos vivem em `C:\Users\User\Desktop\Coding\Projects\` e seguem os requisitos definidos em `C:\Users\User\Desktop\Coding\Projects\CLAUDE.md`.
