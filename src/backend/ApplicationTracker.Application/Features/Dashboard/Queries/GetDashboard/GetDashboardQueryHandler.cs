@@ -1,4 +1,5 @@
 using ApplicationTracker.Domain.Interfaces;
+using ApplicationTracker.Domain.Enums;
 using FluentResults;
 using MediatR;
 
@@ -15,7 +16,13 @@ public class GetDashboardQueryHandler : IRequestHandler<GetDashboardQuery, Resul
 
     public async Task<Result<DashboardDto>> Handle(GetDashboardQuery request, CancellationToken ct)
     {
-        var applications = await _applications.GetAllByUserAsync(request.UserId, ct);
+        var applications = await _applications.GetFilteredAsync(
+            request.UserId,
+            query: null,
+            status: null,
+            companyId: null,
+            sortBy: JobApplicationSortBy.AppliedAtDesc,
+            ct);
 
         var byStatus = applications
             .GroupBy(a => a.Status.ToString())

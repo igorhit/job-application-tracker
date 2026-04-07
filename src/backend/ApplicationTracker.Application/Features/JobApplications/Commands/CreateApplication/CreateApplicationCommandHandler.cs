@@ -33,7 +33,8 @@ public class CreateApplicationCommandHandler : IRequestHandler<CreateApplication
             request.SalaryExpectation,
             request.AppliedAt,
             request.NextActionAt,
-            request.NextActionNote);
+            request.NextActionNote,
+            request.Requirements);
 
         await _applications.AddAsync(application, ct);
         await _applications.SaveChangesAsync(ct);

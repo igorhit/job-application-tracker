@@ -14,6 +14,7 @@ public record CreateApplicationCommand(
     decimal? SalaryExpectation,
     DateTime AppliedAt,
     DateTime? NextActionAt,
-    string? NextActionNote) : IRequest<Result<CreateApplicationResponse>>;
+    string? NextActionNote,
+    IReadOnlyList<string>? Requirements) : IRequest<Result<CreateApplicationResponse>>;
 
 public record CreateApplicationResponse(Guid Id, string JobTitle, string CompanyName);

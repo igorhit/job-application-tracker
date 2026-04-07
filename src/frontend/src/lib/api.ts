@@ -1,4 +1,4 @@
-import type { AuthTokens, Company, DashboardData, JobApplication, Note, User } from './types'
+import type { AiStatus, AiStudyAssistantResponse, ApplicationSortBy, ApplicationStatus, AuthTokens, Company, DashboardData, JobApplication, Note, User } from './types'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5001'
 
@@ -129,7 +129,22 @@ export const companies = {
 
 // Applications
 export const applications = {
-  list: () => request<JobApplication[]>('/applications'),
+  list: (filters?: {
+    q?: string
+    status?: ApplicationStatus
+    companyId?: string
+    sortBy?: ApplicationSortBy
+  }) => {
+    const params = new URLSearchParams()
+
+    if (filters?.q) params.set('q', filters.q)
+    if (filters?.status) params.set('status', filters.status)
+    if (filters?.companyId) params.set('companyId', filters.companyId)
+    if (filters?.sortBy) params.set('sortBy', filters.sortBy)
+
+    const query = params.toString()
+    return request<JobApplication[]>(query ? `/applications?${query}` : '/applications')
+  },
 
   search: (q: string) =>
     request<JobApplication[]>(`/applications/search?q=${encodeURIComponent(q)}`),
@@ -146,6 +161,7 @@ export const applications = {
     appliedAt: string
     nextActionAt?: string
     nextActionNote?: string
+    requirements?: string[]
   }) =>
     request<{ id: string; jobTitle: string; companyName: string }>('/applications', {
       method: 'POST',
@@ -161,6 +177,7 @@ export const applications = {
     appliedAt: string
     nextActionAt?: string
     nextActionNote?: string
+    requirements?: string[]
   }) =>
     request<void>(`/applications/${id}`, {
       method: 'PUT',
@@ -169,6 +186,12 @@ export const applications = {
 
   delete: (id: string) =>
     request<void>(`/applications/${id}`, { method: 'DELETE' }),
+
+  generateStudyAssistant: (id: string, mode: string) =>
+    request<AiStudyAssistantResponse>(`/applications/${id}/study-assistant`, {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    }),
 }
 
 // Notes
@@ -189,4 +212,8 @@ export const notes = {
 // Dashboard
 export const dashboard = {
   get: () => request<DashboardData>('/dashboard'),
+}
+
+export const ai = {
+  getStatus: () => request<AiStatus>('/ai/status'),
 }

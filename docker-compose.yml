@@ -15,7 +15,12 @@ services:
       - DemoData__Enabled=true
       - DemoData__UserEmail=demo@tracker.dev
       - DemoData__UserPassword=Demo1234!
+      - E2EData__Enabled=true
+      - E2EData__UserEmail=e2e@tracker.dev
+      - E2EData__UserPassword=Password123!
+      - E2EData__UserName=E2E Test User
       - Cors__AllowedOrigins=http://localhost:3000
+      - Ai__Enabled=false
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 10s

@@ -2,9 +2,11 @@ using ApplicationTracker.Application.Features.JobApplications.Commands.CreateApp
 using ApplicationTracker.Application.Features.JobApplications.Commands.DeleteApplication;
 using ApplicationTracker.Application.Features.JobApplications.Commands.UpdateApplication;
 using ApplicationTracker.Application.Features.JobApplications.Queries.GetApplicationById;
+using ApplicationTracker.Application.Features.JobApplications.Queries.GenerateStudyAssistant;
 using ApplicationTracker.Application.Features.JobApplications.Queries.GetApplications;
-using ApplicationTracker.Application.Features.JobApplications.Queries.SearchApplications;
 using ApplicationTracker.Domain.Enums;
+using ApplicationTracker.Domain.Errors;
+using FluentResults;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,19 +28,24 @@ public class ApplicationsController : ControllerBase
         ?? throw new InvalidOperationException());
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll([FromQuery] GetApplicationsRequest request, CancellationToken ct)
     {
-        var result = await _mediator.Send(new GetApplicationsQuery(UserId), ct);
+        var result = await _mediator.Send(new GetApplicationsQuery(
+            UserId,
+            request.Q,
+            request.Status,
+            request.CompanyId,
+            request.SortBy), ct);
         return Ok(result.Value);
     }
 
     [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string q, CancellationToken ct)
+    public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] ApplicationStatus? status, [FromQuery] Guid? companyId, [FromQuery] JobApplicationSortBy sortBy = JobApplicationSortBy.AppliedAtDesc, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(q))
             return BadRequest(new { errors = new[] { "Query parameter 'q' is required" } });
 
-        var result = await _mediator.Send(new SearchApplicationsQuery(UserId, q), ct);
+        var result = await _mediator.Send(new GetApplicationsQuery(UserId, q, status, companyId, sortBy), ct);
         return Ok(result.Value);
     }
 
@@ -65,7 +72,8 @@ public class ApplicationsController : ControllerBase
             request.SalaryExpectation,
             request.AppliedAt,
             request.NextActionAt,
-            request.NextActionNote), ct);
+            request.NextActionNote,
+            request.Requirements), ct);
 
         if (result.IsFailed)
             return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
@@ -86,7 +94,8 @@ public class ApplicationsController : ControllerBase
             request.SalaryExpectation,
             request.AppliedAt,
             request.NextActionAt,
-            request.NextActionNote), ct);
+            request.NextActionNote,
+            request.Requirements), ct);
 
         if (result.IsFailed)
             return NotFound(new { errors = result.Errors.Select(e => e.Message) });
@@ -103,6 +112,35 @@ public class ApplicationsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/study-assistant")]
+    public async Task<IActionResult> GenerateStudyAssistant(Guid id, [FromBody] GenerateStudyAssistantRequest request, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GenerateStudyAssistantQuery(id, UserId, request.Mode), ct);
+        if (result.IsSuccess)
+            return Ok(result.Value);
+
+        if (HasErrorCode(result, "ai_not_configured"))
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { errors = new[] { "A integração opcional de IA não está configurada neste ambiente." } });
+
+        if (HasErrorCode(result, "ai_unsupported_mode"))
+            return BadRequest(new { errors = new[] { "Modo de prompt inválido." } });
+
+        if (HasErrorCode(result, "ai_generation_failed"))
+            return StatusCode(StatusCodes.Status502BadGateway, new { errors = new[] { "Não foi possível gerar conteúdo com IA no momento." } });
+
+        if (result.Errors.Any(error => error.Message == DomainErrors.JobApplication.NotFound.Message))
+            return NotFound(new { errors = result.Errors.Select(e => e.Message) });
+
+        return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+    }
+
+    private static bool HasErrorCode(ResultBase result, string code)
+    {
+        return result.Errors.Any(error =>
+            error.Metadata.TryGetValue("code", out var value) &&
+            string.Equals(value?.ToString(), code, StringComparison.OrdinalIgnoreCase));
+    }
 }
 
 public record CreateApplicationRequest(
@@ -114,7 +152,8 @@ public record CreateApplicationRequest(
     decimal? SalaryExpectation,
     DateTime AppliedAt,
     DateTime? NextActionAt,
-    string? NextActionNote);
+    string? NextActionNote,
+    IReadOnlyList<string>? Requirements);
 
 public record UpdateApplicationRequest(
     string JobTitle,
@@ -124,4 +163,13 @@ public record UpdateApplicationRequest(
     decimal? SalaryExpectation,
     DateTime AppliedAt,
     DateTime? NextActionAt,
-    string? NextActionNote);
+    string? NextActionNote,
+    IReadOnlyList<string>? Requirements);
+
+public record GenerateStudyAssistantRequest(string Mode);
+
+public record GetApplicationsRequest(
+    string? Q,
+    ApplicationStatus? Status,
+    Guid? CompanyId,
+    JobApplicationSortBy SortBy = JobApplicationSortBy.AppliedAtDesc);

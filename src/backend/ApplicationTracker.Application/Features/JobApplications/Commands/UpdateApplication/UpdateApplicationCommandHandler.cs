@@ -30,7 +30,8 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
             request.NextActionAt,
             request.NextActionNote);
 
-        _applications.Update(application);
+        _applications.ReplaceRequirements(application, request.Requirements);
+
         await _applications.SaveChangesAsync(ct);
 
         return Result.Ok();

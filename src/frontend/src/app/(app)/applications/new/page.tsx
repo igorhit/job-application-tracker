@@ -1,9 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import FeedbackBanner from '@/components/FeedbackBanner'
 import { useRouter } from 'next/navigation'
 import { applications as applicationsApi, companies as companiesApi, ApiError } from '@/lib/api'
+import { parseRequirementsInput } from '@/lib/requirements'
 import type { Company } from '@/lib/types'
+import { BuildingOfficeIcon } from '@heroicons/react/24/outline'
 
 const STATUS_OPTIONS = [
   { value: 0, label: 'Wishlist' },
@@ -20,8 +24,10 @@ const labelCls = 'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-30
 export default function NewApplicationPage() {
   const router = useRouter()
   const [companiesList, setCompaniesList] = useState<Company[]>([])
+  const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [companiesError, setCompaniesError] = useState('')
 
   const [form, setForm] = useState({
     companyId: '',
@@ -33,14 +39,28 @@ export default function NewApplicationPage() {
     appliedAt: new Date().toISOString().split('T')[0],
     nextActionAt: '',
     nextActionNote: '',
+    requirements: '',
   })
 
-  useEffect(() => {
-    companiesApi.list().then(data => {
+  const loadCompanies = useCallback(async () => {
+    setLoadingCompanies(true)
+    setCompaniesError('')
+    try {
+      const data = await companiesApi.list()
       setCompaniesList(data)
-      if (data.length > 0) setForm(f => ({ ...f, companyId: data[0].id }))
-    })
+      if (data.length > 0) {
+        setForm(f => ({ ...f, companyId: f.companyId || data[0].id }))
+      }
+    } catch (err) {
+      setCompaniesError(err instanceof ApiError ? err.message : 'Não foi possível carregar as empresas.')
+    } finally {
+      setLoadingCompanies(false)
+    }
   }, [])
+
+  useEffect(() => {
+    loadCompanies()
+  }, [loadCompanies])
 
   function set(field: string, value: string | number) {
     setForm(f => ({ ...f, [field]: value }))
@@ -62,6 +82,7 @@ export default function NewApplicationPage() {
         appliedAt: new Date(form.appliedAt).toISOString(),
         nextActionAt: form.nextActionAt ? new Date(form.nextActionAt).toISOString() : undefined,
         nextActionNote: form.nextActionNote || undefined,
+        requirements: parseRequirementsInput(form.requirements),
       })
       router.replace(`/applications/${result.id}`)
     } catch (err) {
@@ -72,6 +93,7 @@ export default function NewApplicationPage() {
 
   return (
     <div className="max-w-2xl">
+      {companiesError && <FeedbackBanner variant="error" message={companiesError} onClose={() => setCompaniesError('')} />}
       <div className="mb-6">
         <button onClick={() => router.back()} className="mb-3 text-sm text-gray-500 hover:text-gray-300 dark:text-gray-400">
           ← Voltar
@@ -82,68 +104,98 @@ export default function NewApplicationPage() {
       <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className={labelCls}>Empresa *</label>
-            {companiesList.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Nenhuma empresa cadastrada.{' '}
-                <a href="/companies" className="text-blue-500 hover:underline">Cadastrar empresa</a>
-              </p>
+            <label htmlFor="application-company" className={labelCls}>Empresa *</label>
+            {loadingCompanies ? (
+              <div className="h-10 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800" />
+            ) : companiesList.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-4 dark:border-gray-700 dark:bg-gray-800/40">
+                <BuildingOfficeIcon className="mb-2 h-6 w-6 text-gray-400 dark:text-gray-500" />
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {companiesError ? 'Falha ao carregar empresas para o formulário.' : 'Cadastre uma empresa antes de criar a candidatura.'}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                  {companiesError ? (
+                    <button type="button" onClick={loadCompanies} className="text-blue-500 hover:underline">
+                      Tentar novamente
+                    </button>
+                  ) : (
+                    <Link href="/companies" className="text-blue-500 hover:underline">
+                      Ir para empresas
+                    </Link>
+                  )}
+                </div>
+              </div>
             ) : (
-              <select value={form.companyId} onChange={e => set('companyId', e.target.value)} required className={inputCls}>
+              <select id="application-company" value={form.companyId} onChange={e => set('companyId', e.target.value)} required className={inputCls}>
                 {companiesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             )}
           </div>
 
           <div className="sm:col-span-2">
-            <label className={labelCls}>Cargo *</label>
+            <label htmlFor="application-job-title" className={labelCls}>Cargo *</label>
             <input type="text" value={form.jobTitle} onChange={e => set('jobTitle', e.target.value)} required
-              placeholder="Ex: Desenvolvedor Backend" className={inputCls} />
+              id="application-job-title" placeholder="Ex: Desenvolvedor Backend" className={inputCls} />
           </div>
 
           <div>
-            <label className={labelCls}>Status</label>
-            <select value={form.status} onChange={e => set('status', Number(e.target.value))} className={inputCls}>
+            <label htmlFor="application-status" className={labelCls}>Status</label>
+            <select id="application-status" value={form.status} onChange={e => set('status', Number(e.target.value))} className={inputCls}>
               {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
 
           <div>
-            <label className={labelCls}>Data de candidatura *</label>
-            <input type="date" value={form.appliedAt} onChange={e => set('appliedAt', e.target.value)} required className={inputCls} />
+            <label htmlFor="application-applied-at" className={labelCls}>Data de candidatura *</label>
+            <input id="application-applied-at" type="date" value={form.appliedAt} onChange={e => set('appliedAt', e.target.value)} required className={inputCls} />
           </div>
 
           <div>
-            <label className={labelCls}>Local</label>
+            <label htmlFor="application-location" className={labelCls}>Local</label>
             <input type="text" value={form.location} onChange={e => set('location', e.target.value)}
-              placeholder="Ex: Remoto, São Paulo" className={inputCls} />
+              id="application-location" placeholder="Ex: Remoto, São Paulo" className={inputCls} />
           </div>
 
           <div>
-            <label className={labelCls}>Pretensão salarial (R$)</label>
+            <label htmlFor="application-salary" className={labelCls}>Pretensão salarial (R$)</label>
             <input type="number" value={form.salaryExpectation} onChange={e => set('salaryExpectation', e.target.value)}
-              min="0" step="100" className={inputCls} />
+              id="application-salary" min="0" step="100" className={inputCls} />
           </div>
 
           <div className="sm:col-span-2">
-            <label className={labelCls}>URL da vaga</label>
+            <label htmlFor="application-job-url" className={labelCls}>URL da vaga</label>
             <input type="url" value={form.jobUrl} onChange={e => set('jobUrl', e.target.value)}
-              placeholder="https://" className={inputCls} />
+              id="application-job-url" placeholder="https://" className={inputCls} />
           </div>
 
           <div>
-            <label className={labelCls}>Próxima ação em</label>
-            <input type="date" value={form.nextActionAt} onChange={e => set('nextActionAt', e.target.value)} className={inputCls} />
+            <label htmlFor="application-next-action-at" className={labelCls}>Próxima ação em</label>
+            <input id="application-next-action-at" type="date" value={form.nextActionAt} onChange={e => set('nextActionAt', e.target.value)} className={inputCls} />
           </div>
 
           <div>
-            <label className={labelCls}>O que fazer</label>
+            <label htmlFor="application-next-action-note" className={labelCls}>O que fazer</label>
             <input type="text" value={form.nextActionNote} onChange={e => set('nextActionNote', e.target.value)}
-              placeholder="Ex: Enviar portfólio" className={inputCls} />
+              id="application-next-action-note" placeholder="Ex: Enviar portfólio" className={inputCls} />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label htmlFor="application-requirements" className={labelCls}>Principais requisitos</label>
+            <textarea
+              id="application-requirements"
+              value={form.requirements}
+              onChange={e => set('requirements', e.target.value)}
+              rows={5}
+              placeholder={`Ex:\nASP.NET Core\nEntity Framework\nSQL\nTestes automatizados`}
+              className={`${inputCls} resize-y`}
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Um requisito por linha. Esses itens serão usados para gerar o prompt de estudo depois.
+            </p>
           </div>
         </div>
 
-        {error && <p className="rounded-lg bg-red-950 px-3 py-2 text-sm text-red-400">{error}</p>}
+        {error && <FeedbackBanner variant="error" message={error} onClose={() => setError('')} />}
 
         <div className="flex gap-2 pt-2">
           <button type="button" onClick={() => router.back()}

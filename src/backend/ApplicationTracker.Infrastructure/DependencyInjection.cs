@@ -1,4 +1,6 @@
+using ApplicationTracker.Application.Abstractions.Ai;
 using ApplicationTracker.Domain.Interfaces;
+using ApplicationTracker.Infrastructure.Ai;
 using ApplicationTracker.Infrastructure.Persistence;
 using ApplicationTracker.Infrastructure.Persistence.Repositories;
 using ApplicationTracker.Infrastructure.Security;
@@ -8,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace ApplicationTracker.Infrastructure;
@@ -29,6 +32,21 @@ public static class DependencyInjection
 
         services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
         services.AddScoped<IJwtService, JwtService>();
+        services.Configure<AiOptions>(configuration.GetSection("Ai"));
+        services.AddHttpClient<IAiTextGenerationService, OpenAiTextGenerationService>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<AiOptions>>().Value;
+            var baseUrl = string.IsNullOrWhiteSpace(options.BaseUrl)
+                ? "https://api.openai.com/v1/"
+                : options.BaseUrl;
+
+            client.BaseAddress = new Uri(baseUrl, UriKind.Absolute);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds > 0 ? options.TimeoutSeconds : 45);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            if (!string.IsNullOrWhiteSpace(options.ApiKey))
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+        });
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer();

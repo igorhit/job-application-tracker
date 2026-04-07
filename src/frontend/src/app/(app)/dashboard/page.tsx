@@ -1,27 +1,56 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { dashboard } from '@/lib/api'
+import FeedbackBanner from '@/components/FeedbackBanner'
+import { ApiError, dashboard } from '@/lib/api'
 import { APPLICATION_STATUS_COLORS, APPLICATION_STATUS_LABELS, type ApplicationStatus, type DashboardData } from '@/lib/types'
-import { CalendarDaysIcon } from '@heroicons/react/24/outline'
+import { CalendarDaysIcon, SparklesIcon } from '@heroicons/react/24/outline'
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await dashboard.get()
+      setData(response)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Não foi possível carregar o dashboard.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    dashboard.get().then(setData).finally(() => setLoading(false))
-  }, [])
+    load()
+  }, [load])
 
   if (loading) return <Skeleton />
 
-  if (!data) return null
+  if (!data) {
+    return (
+      <div className="space-y-4">
+        <FeedbackBanner variant="error" message={error || 'Não foi possível carregar o dashboard.'} />
+        <button
+          type="button"
+          onClick={load}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    )
+  }
 
   const statusOrder: ApplicationStatus[] = ['Applied', 'Interview', 'Challenge', 'Offer', 'Wishlist', 'Rejected']
 
   return (
     <div className="space-y-6">
+      {error && <FeedbackBanner variant="info" message={error} onClose={() => setError('')} />}
       <div>
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Dashboard</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">Visão geral das suas candidaturas</p>
@@ -78,6 +107,23 @@ export default function DashboardPage() {
                 </time>
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {data.total > 0 && data.upcomingActions.length === 0 && (
+        <div className="rounded-xl border border-blue-900/60 bg-blue-950/20 p-5">
+          <div className="flex items-start gap-3">
+            <SparklesIcon className="mt-0.5 h-5 w-5 text-blue-400" />
+            <div>
+              <p className="text-sm font-medium text-blue-200">Nenhuma próxima ação definida.</p>
+              <p className="mt-1 text-sm text-blue-300/80">
+                Atualize uma candidatura com data e nota de acompanhamento para manter este painel útil no dia a dia.
+              </p>
+              <Link href="/applications" className="mt-3 inline-block text-sm font-medium text-blue-300 hover:text-blue-200">
+                Revisar candidaturas
+              </Link>
+            </div>
           </div>
         </div>
       )}

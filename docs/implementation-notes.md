@@ -299,3 +299,109 @@ No `docker-compose.yml`: `Cors__AllowedOrigins=http://localhost:3000`.
 **Por que essa solução**
 
 Configurar a origem via variável de ambiente permite que o mesmo container seja usado em diferentes ambientes (desenvolvimento local, staging, produção) sem rebuild. `AllowCredentials()` é necessário porque o frontend envia cookies e headers de autorização. A lista de origens separada por vírgula permite múltiplas origens se necessário.
+
+---
+
+## 11. Playwright usando `127.0.0.1` enquanto o backend aceitava apenas `localhost`
+
+**Problema**
+
+Os testes E2E do Playwright preenchiam o formulário de login corretamente, mas permaneciam em `/login` com a mensagem "Erro ao fazer login", mesmo com a API aceitando o usuário demo por `curl`.
+
+**O que causava**
+
+O `playwright.config.ts` usava `http://127.0.0.1:3000` como `baseURL`, enquanto o backend estava configurado com `Cors__AllowedOrigins=http://localhost:3000`. Para o browser, `127.0.0.1` e `localhost` são origens diferentes. O frontend carregava normalmente, mas as chamadas `fetch` para `http://localhost:5001` eram bloqueadas por CORS porque o header `Origin` enviado pelo browser era `http://127.0.0.1:3000`.
+
+**Como foi solucionado**
+
+O `baseURL` padrão do Playwright foi alinhado com a origem já permitida pelo backend:
+
+```ts
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000'
+```
+
+**Por que essa solução**
+
+O problema não estava no fluxo de autenticação nem na API, e sim na origem usada pelo browser automatizado. Ajustar o `baseURL` era a correção mínima e mais precisa, preservando a configuração de CORS já usada pelo `docker compose` e evitando duplicar origens equivalentes apenas para contornar a suíte de testes.
+
+---
+
+## 12. Testes E2E poluindo o dataset demo persistido no volume Docker
+
+**Problema**
+
+Os smoke tests do Playwright criavam empresas e candidaturas usando o próprio usuário demo (`demo@tracker.dev`). Quando uma execução era interrompida ou falhava antes do cleanup final, registros como `Playwright Role ...` permaneciam no banco SQLite persistido no volume Docker e passavam a aparecer para qualquer pessoa que abrisse a aplicação localmente.
+
+**O que causava**
+
+O problema não era a persistência do Docker em si, e sim o acoplamento indevido entre a suíte E2E e o dataset demo. Como o volume `backend_data` preserva o banco entre reinicializações, qualquer dado criado no escopo do usuário demo continuava visível nas próximas execuções.
+
+**Como foi solucionado**
+
+Foi criado um usuário E2E dedicado no seed opcional do backend, habilitado apenas quando configurado no ambiente. A suíte Playwright passou a autenticar com esse usuário e a executar um cleanup prévio de empresas e candidaturas com prefixo `Playwright ` antes de começar o fluxo:
+
+```ts
+await cleanupPlaywrightArtifacts(request)
+await login(page, E2E_EMAIL, E2E_PASSWORD)
+```
+
+Com isso, todo o CRUD exercitado pela suíte fica restrito ao usuário de testes e os resíduos de execuções anteriores são removidos antes de cada rodada, sem contaminar o dashboard e as listagens do usuário demo.
+
+**Por que essa solução**
+
+Essa abordagem preserva o valor do dataset demo para recrutadores e isola os testes de ponta a ponta sem exigir que o usuário saiba remover volumes Docker manualmente. É uma separação de responsabilidades melhor: o ambiente demo continua limpo por padrão, enquanto os E2E continuam cobrindo o fluxo real da aplicação com credenciais estáveis e previsíveis no CI.
+
+---
+
+## 13. Atualização da candidatura quebrando ao substituir requisitos persistidos
+
+**Problema**
+
+Depois de adicionar requisitos estruturados por candidatura, a edição de uma vaga existente passou a falhar com `500` no backend e `Erro ao salvar` no frontend sempre que os requisitos eram reenviados no `PUT /applications/{id}`.
+
+**O que causava**
+
+O aggregate `JobApplication` estava limpando e recriando a coleção `Requirements` diretamente no método `Update()`, enquanto a camada de persistência também tentava sincronizar a entidade principal já rastreada pelo `DbContext`. Na prática, o EF Core acabava emitindo operações conflitantes sobre os mesmos dependentes e lançava `DbUpdateConcurrencyException` ao salvar.
+
+**Como foi solucionado**
+
+A atualização dos campos escalares da candidatura permaneceu no aggregate, mas a substituição da coleção de requisitos foi movida explicitamente para o repositório:
+
+```csharp
+application.Update(...);
+_applications.ReplaceRequirements(application, request.Requirements);
+await _applications.SaveChangesAsync(ct);
+```
+
+No repositório, os requisitos antigos são removidos pelo `DbSet<ApplicationRequirement>` e os novos são inseridos novamente com a ordem correta, sem depender de `Clear()` na coleção carregada.
+
+**Por que essa solução**
+
+Coleções dependentes persistidas são um ponto delicado no tracking do EF Core. Deixar a troca completa dessa coleção na infraestrutura torna o comportamento explícito e previsível, enquanto o aggregate continua responsável apenas pelas regras do domínio mais simples. O resultado foi um update estável, coberto por teste de integração e refletido corretamente no fluxo E2E.
+
+---
+
+## 14. Cards de modo de prompt com nome acessível instável quebrando o Playwright
+
+**Problema**
+
+Depois de adicionar as variações de prompt na tela de detalhe da candidatura, o teste E2E falhava ao tentar clicar no modo `Preparação para entrevista`, mesmo com o card visível na interface.
+
+**O que causava**
+
+Cada card era um `<button>` contendo dois textos: o título do modo e a descrição. O nome acessível calculado pelo browser passou a ser a composição desses dois textos, não apenas o título visível. Com isso, o seletor `getByRole('button', { name: 'Preparação para entrevista' })` ficou instável e deixou de corresponder exatamente ao elemento esperado.
+
+**Como foi solucionado**
+
+Os botões dos modos de prompt passaram a declarar explicitamente seu nome acessível e seu estado selecionado:
+
+```tsx
+<button
+  aria-label={option.label}
+  aria-pressed={studyPromptMode === option.value}
+>
+```
+
+**Por que essa solução**
+
+O ajuste resolve a fragilidade do Playwright sem depender de seletores mais frouxos, melhora a semântica do controle para tecnologias assistivas e deixa explícito qual opção está ativa. É uma correção melhor do que adaptar o teste para navegar por uma árvore de texto incidental do card.

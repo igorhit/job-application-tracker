@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import ConfirmDialog from '@/components/ConfirmDialog'
+import FeedbackBanner from '@/components/FeedbackBanner'
 import { companies as companiesApi, ApiError } from '@/lib/api'
 import type { Company } from '@/lib/types'
 import { PlusIcon, PencilIcon, TrashIcon, BuildingOfficeIcon, GlobeAltIcon } from '@heroicons/react/24/outline'
@@ -23,12 +25,18 @@ export default function CompaniesPage() {
   const [form, setForm] = useState<CompanyFormData>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null)
 
   async function load() {
     try {
+      setLoadError('')
       const data = await companiesApi.list()
       setItems(data)
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : 'Não foi possível carregar as empresas.')
     } finally {
       setLoading(false)
     }
@@ -40,6 +48,7 @@ export default function CompaniesPage() {
     setEditing(null)
     setForm(EMPTY_FORM)
     setError('')
+    setSuccessMessage('')
     setShowForm(true)
   }
 
@@ -47,12 +56,14 @@ export default function CompaniesPage() {
     setEditing(company)
     setForm({ name: company.name, website: company.website ?? '', notes: company.notes ?? '' })
     setError('')
+    setSuccessMessage('')
     setShowForm(true)
   }
 
   function closeForm() {
     setShowForm(false)
     setEditing(null)
+    setError('')
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -67,8 +78,10 @@ export default function CompaniesPage() {
       }
       if (editing) {
         await companiesApi.update(editing.id, payload)
+        setSuccessMessage('Empresa atualizada com sucesso.')
       } else {
         await companiesApi.create(payload)
+        setSuccessMessage('Empresa criada com sucesso.')
       }
       closeForm()
       await load()
@@ -79,12 +92,16 @@ export default function CompaniesPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Remover empresa? As candidaturas vinculadas serão afetadas.')) return
-    setDeleting(id)
+  async function handleDelete() {
+    if (!companyToDelete) return
+    setDeleting(companyToDelete.id)
     try {
-      await companiesApi.delete(id)
-      setItems(prev => prev.filter(c => c.id !== id))
+      await companiesApi.delete(companyToDelete.id)
+      setItems(prev => prev.filter(c => c.id !== companyToDelete.id))
+      setSuccessMessage('Empresa removida com sucesso.')
+      setCompanyToDelete(null)
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : 'Não foi possível remover a empresa.')
     } finally {
       setDeleting(null)
     }
@@ -92,6 +109,8 @@ export default function CompaniesPage() {
 
   return (
     <div className="space-y-5">
+      {successMessage && <FeedbackBanner variant="success" message={successMessage} onClose={() => setSuccessMessage('')} />}
+      {loadError && <FeedbackBanner variant="error" message={loadError} onClose={() => setLoadError('')} />}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Empresas</h1>
@@ -109,6 +128,17 @@ export default function CompaniesPage() {
       {loading ? (
         <div className="space-y-3 animate-pulse">
           {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-gray-200 dark:bg-gray-800" />)}
+        </div>
+      ) : loadError ? (
+        <div className="rounded-xl border border-red-900/60 bg-red-950/30 p-6">
+          <p className="text-sm text-red-300">Falha ao carregar as empresas.</p>
+          <button
+            type="button"
+            onClick={load}
+            className="mt-3 text-sm font-medium text-red-200 underline-offset-4 hover:underline"
+          >
+            Tentar novamente
+          </button>
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-gray-200 p-10 text-center dark:border-gray-800">
@@ -145,13 +175,15 @@ export default function CompaniesPage() {
               <div className="ml-4 flex gap-1">
                 <button
                   onClick={() => openEdit(company)}
+                  aria-label={`Editar empresa ${company.name}`}
                   className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors"
                 >
                   <PencilIcon className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => handleDelete(company.id)}
+                  onClick={() => setCompanyToDelete(company)}
                   disabled={deleting === company.id}
+                  aria-label={`Remover empresa ${company.name}`}
                   className="rounded-lg p-2 text-gray-400 hover:bg-red-950 hover:text-red-400 disabled:opacity-50 transition-colors"
                 >
                   <TrashIcon className="h-4 w-4" />
@@ -171,8 +203,9 @@ export default function CompaniesPage() {
             </h2>
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome *</label>
+                <label htmlFor="company-name" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Nome *</label>
                 <input
+                  id="company-name"
                   type="text"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -181,8 +214,9 @@ export default function CompaniesPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Site</label>
+                <label htmlFor="company-website" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Site</label>
                 <input
+                  id="company-website"
                   type="url"
                   value={form.website}
                   onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
@@ -191,8 +225,9 @@ export default function CompaniesPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Observações</label>
+                <label htmlFor="company-notes" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Observações</label>
                 <textarea
+                  id="company-notes"
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                   rows={3}
@@ -220,6 +255,17 @@ export default function CompaniesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={companyToDelete !== null}
+        title="Remover empresa"
+        description={`A empresa "${companyToDelete?.name}" será removida. As candidaturas vinculadas também serão impactadas.`}
+        confirmLabel="Remover"
+        onConfirm={handleDelete}
+        onCancel={() => setCompanyToDelete(null)}
+        loading={deleting !== null}
+        tone="danger"
+      />
     </div>
   )
 }

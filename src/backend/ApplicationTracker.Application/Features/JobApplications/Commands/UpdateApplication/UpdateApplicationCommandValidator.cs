@@ -12,5 +12,10 @@ public class UpdateApplicationCommandValidator : AbstractValidator<UpdateApplica
         RuleFor(x => x.SalaryExpectation).GreaterThan(0).When(x => x.SalaryExpectation.HasValue);
         RuleFor(x => x.AppliedAt).NotEmpty();
         RuleFor(x => x.NextActionNote).MaximumLength(500).When(x => x.NextActionNote is not null);
+        RuleFor(x => x.Requirements).Must(r => r is null || r.Count <= 12)
+            .WithMessage("No máximo 12 requisitos por candidatura.");
+        RuleForEach(x => x.Requirements)
+            .NotEmpty()
+            .MaximumLength(300);
     }
 }

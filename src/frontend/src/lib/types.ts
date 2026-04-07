@@ -6,6 +6,20 @@ export type ApplicationStatus =
   | 'Offer'
   | 'Rejected'
 
+export type ApplicationSortBy =
+  | 'AppliedAtDesc'
+  | 'AppliedAtAsc'
+  | 'NextActionAsc'
+  | 'CompanyAsc'
+  | 'StatusAsc'
+  | 'CreatedAtDesc'
+
+export interface ApplicationRequirement {
+  id: string
+  content: string
+  displayOrder: number
+}
+
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   Wishlist: 'Wishlist',
   Applied: 'Aplicado',
@@ -59,8 +73,24 @@ export interface JobApplication {
   appliedAt: string
   nextActionAt?: string
   nextActionNote?: string
+  requirements: ApplicationRequirement[]
   noteCount: number
   createdAt: string
+}
+
+export interface AiStatus {
+  enabled: boolean
+  provider: string
+  model: string
+  message: string
+}
+
+export interface AiStudyAssistantResponse {
+  mode: string
+  provider: string
+  model: string
+  content: string
+  generatedAtUtc: string
 }
 
 export interface Note {

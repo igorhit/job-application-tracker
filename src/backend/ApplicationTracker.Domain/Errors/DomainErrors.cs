@@ -28,4 +28,16 @@ public static class DomainErrors
         public static IError NotFound => new Error("Note not found");
         public static IError ApplicationNotFound => new Error("Job application not found for this user");
     }
+
+    public static class Ai
+    {
+        public static IError NotConfigured => new Error("AI integration is not configured")
+            .WithMetadata("code", "ai_not_configured");
+
+        public static IError UnsupportedMode => new Error("Unsupported study prompt mode")
+            .WithMetadata("code", "ai_unsupported_mode");
+
+        public static IError GenerationFailed => new Error("AI provider failed to generate content")
+            .WithMetadata("code", "ai_generation_failed");
+    }
 }

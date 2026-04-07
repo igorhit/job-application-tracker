@@ -34,6 +34,11 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             a.AppliedAt,
             a.NextActionAt,
             a.NextActionNote,
+            a.Requirements
+                .OrderBy(r => r.DisplayOrder)
+                .Select(r => new ApplicationRequirementDto(r.Id, r.Content, r.DisplayOrder))
+                .ToList()
+                .AsReadOnly(),
             a.Notes.Count,
             a.CreatedAt));
     }

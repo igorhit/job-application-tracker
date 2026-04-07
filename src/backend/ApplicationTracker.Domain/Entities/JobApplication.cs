@@ -20,6 +20,7 @@ public class JobApplication
     public User User { get; private set; } = null!;
     public Company Company { get; private set; } = null!;
     public ICollection<ApplicationNote> Notes { get; private set; } = new List<ApplicationNote>();
+    public ICollection<ApplicationRequirement> Requirements { get; private set; } = new List<ApplicationRequirement>();
 
     private JobApplication() { }
 
@@ -33,9 +34,10 @@ public class JobApplication
         decimal? salaryExpectation,
         DateTime appliedAt,
         DateTime? nextActionAt,
-        string? nextActionNote)
+        string? nextActionNote,
+        IEnumerable<string>? requirements = null)
     {
-        return new JobApplication
+        var application = new JobApplication
         {
             Id = Guid.NewGuid(),
             UserId = userId,
@@ -50,6 +52,9 @@ public class JobApplication
             NextActionNote = nextActionNote,
             CreatedAt = DateTime.UtcNow
         };
+
+        application.ReplaceRequirements(requirements);
+        return application;
     }
 
     public void Update(
@@ -70,5 +75,23 @@ public class JobApplication
         AppliedAt = appliedAt;
         NextActionAt = nextActionAt;
         NextActionNote = nextActionNote;
+    }
+
+    private void ReplaceRequirements(IEnumerable<string>? requirements)
+    {
+        Requirements.Clear();
+
+        if (requirements is null)
+            return;
+
+        var normalizedRequirements = requirements
+            .Where(requirement => !string.IsNullOrWhiteSpace(requirement))
+            .Select(requirement => requirement.Trim())
+            .ToList();
+
+        for (var i = 0; i < normalizedRequirements.Count; i++)
+        {
+            Requirements.Add(ApplicationRequirement.Create(Id, normalizedRequirements[i], i));
+        }
     }
 }

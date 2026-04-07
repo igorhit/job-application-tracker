@@ -44,6 +44,30 @@ namespace ApplicationTracker.Infrastructure.Migrations
                     b.ToTable("ApplicationNotes");
                 });
 
+            modelBuilder.Entity("ApplicationTracker.Domain.Entities.ApplicationRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("JobApplicationId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobApplicationId");
+
+                    b.ToTable("ApplicationRequirements");
+                });
+
             modelBuilder.Entity("ApplicationTracker.Domain.Entities.Company", b =>
                 {
                     b.Property<Guid>("Id")
@@ -203,6 +227,17 @@ namespace ApplicationTracker.Infrastructure.Migrations
                     b.Navigation("JobApplication");
                 });
 
+            modelBuilder.Entity("ApplicationTracker.Domain.Entities.ApplicationRequirement", b =>
+                {
+                    b.HasOne("ApplicationTracker.Domain.Entities.JobApplication", "JobApplication")
+                        .WithMany("Requirements")
+                        .HasForeignKey("JobApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("JobApplication");
+                });
+
             modelBuilder.Entity("ApplicationTracker.Domain.Entities.Company", b =>
                 {
                     b.HasOne("ApplicationTracker.Domain.Entities.User", "User")
@@ -252,6 +287,8 @@ namespace ApplicationTracker.Infrastructure.Migrations
             modelBuilder.Entity("ApplicationTracker.Domain.Entities.JobApplication", b =>
                 {
                     b.Navigation("Notes");
+
+                    b.Navigation("Requirements");
                 });
 
             modelBuilder.Entity("ApplicationTracker.Domain.Entities.User", b =>

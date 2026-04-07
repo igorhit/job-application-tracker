@@ -15,7 +15,13 @@ public class GetApplicationsQueryHandler : IRequestHandler<GetApplicationsQuery,
 
     public async Task<Result<IReadOnlyList<JobApplicationDto>>> Handle(GetApplicationsQuery request, CancellationToken ct)
     {
-        var applications = await _applications.GetAllByUserAsync(request.UserId, ct);
+        var applications = await _applications.GetFilteredAsync(
+            request.UserId,
+            request.Query,
+            request.Status,
+            request.CompanyId,
+            request.SortBy,
+            ct);
 
         var dtos = applications
             .Select(a => new JobApplicationDto(
@@ -31,6 +37,11 @@ public class GetApplicationsQueryHandler : IRequestHandler<GetApplicationsQuery,
                 a.AppliedAt,
                 a.NextActionAt,
                 a.NextActionNote,
+                a.Requirements
+                    .OrderBy(r => r.DisplayOrder)
+                    .Select(r => new ApplicationRequirementDto(r.Id, r.Content, r.DisplayOrder))
+                    .ToList()
+                    .AsReadOnly(),
                 a.Notes.Count,
                 a.CreatedAt))
             .ToList()

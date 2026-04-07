@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<JobApplication> JobApplications => Set<JobApplication>();
     public DbSet<ApplicationNote> ApplicationNotes => Set<ApplicationNote>();
+    public DbSet<ApplicationRequirement> ApplicationRequirements => Set<ApplicationRequirement>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
@@ -52,6 +53,17 @@ public class AppDbContext : DbContext
                 .WithMany(c => c.JobApplications)
                 .HasForeignKey(a => a.CompanyId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ApplicationRequirement>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Property(r => r.Content).IsRequired().HasMaxLength(300);
+            e.Property(r => r.DisplayOrder).IsRequired();
+            e.HasOne(r => r.JobApplication)
+                .WithMany(a => a.Requirements)
+                .HasForeignKey(r => r.JobApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ApplicationNote>(e =>

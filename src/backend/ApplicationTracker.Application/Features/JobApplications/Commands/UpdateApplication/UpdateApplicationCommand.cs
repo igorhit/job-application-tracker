@@ -14,4 +14,5 @@ public record UpdateApplicationCommand(
     decimal? SalaryExpectation,
     DateTime AppliedAt,
     DateTime? NextActionAt,
-    string? NextActionNote) : IRequest<Result>;
+    string? NextActionNote,
+    IReadOnlyList<string>? Requirements) : IRequest<Result>;
