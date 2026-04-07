@@ -1,0 +1,30 @@
+# Secrets
+.env
+*.env
+
+# Build
+bin/
+obj/
+out/
+publish/
+
+# Node
+node_modules/
+.next/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store

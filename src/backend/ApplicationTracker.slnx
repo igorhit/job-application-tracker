@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="../../tests/backend/ApplicationTracker.IntegrationTests/ApplicationTracker.IntegrationTests.csproj" />
+  <Project Path="../../tests/backend/ApplicationTracker.UnitTests/ApplicationTracker.UnitTests.csproj" />
+  <Project Path="ApplicationTracker.API/ApplicationTracker.API.csproj" />
+  <Project Path="ApplicationTracker.Application/ApplicationTracker.Application.csproj" />
+  <Project Path="ApplicationTracker.Domain/ApplicationTracker.Domain.csproj" />
+  <Project Path="ApplicationTracker.Infrastructure/ApplicationTracker.Infrastructure.csproj" />
+</Solution>

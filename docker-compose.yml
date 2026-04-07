@@ -1,0 +1,38 @@
+name: applicationtracker
+
+services:
+  backend:
+    build:
+      context: src/backend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    volumes:
+      - backend_data:/app/runtime
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Data Source=/app/runtime/applicationtracker.db
+      - DemoData__Enabled=true
+      - DemoData__UserEmail=demo@tracker.dev
+      - DemoData__UserPassword=Demo1234!
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: src/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5001
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend_data:
